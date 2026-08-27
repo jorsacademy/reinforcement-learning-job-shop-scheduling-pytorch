@@ -1,0 +1,58 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install CPU PyTorch and scheduling dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.3"
+          pip install "numpy>=1.24" "gymnasium>=1.2" "ortools>=9.10"
+
+      - name: Print package versions
+        run: |
+          python - <<'PY'
+          import gymnasium, numpy, ortools, torch
+          print("torch", torch.__version__)
+          print("numpy", numpy.__version__)
+          print("gymnasium", gymnasium.__version__)
+          print("ortools", ortools.__version__)
+          PY
+
+      - name: Run JSSP environment self-test
+        run: python train_jssp_ppo.py --self-test
+
+      - name: Run regression and integration tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Run real PPO training and CP-SAT evaluation smoke
+        run: |
+          python train_jssp_ppo.py \
+            --seed 42 \
+            --jobs 3 \
+            --machines 3 \
+            --rollout-instances 12 \
+            --epochs 5 \
+            --ppo-updates 2 \
+            --minibatch-size 54 \
+            --hidden-dim 32 \
+            --heads 4 \
+            --layers 1 \
+            --test-instances 6 \
+            --cpsat \
+            --cpsat-instances 4 \
+            --cpsat-time-limit 5
