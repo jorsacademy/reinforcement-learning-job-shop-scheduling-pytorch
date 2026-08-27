@@ -260,6 +260,52 @@ This is retained deliberately. The project demonstrates a real RL scheduling pip
 
 The local runtime did not contain Gymnasium or OR-Tools, so the two package-level integration tests were skipped locally. The GitHub Actions workflow installs both packages and is designed to run the real Gymnasium checker, CP-SAT/exhaustive-oracle cross-check and a short PPO + exact-evaluation smoke experiment before the repository is considered fully validated.
 
+## Validated GitHub Actions run
+
+GitHub Actions run `33113397885` completed the real integration pipeline on Ubuntu 24.04 / CPython 3.12.14 with:
+
+```text
+PyTorch      2.13.0+cpu
+NumPy        2.5.2
+Gymnasium    1.3.0
+OR-Tools     9.15.6755
+```
+
+All **10 regression/integration tests** passed, including the real Gymnasium environment checker and the CP-SAT vs independent exhaustive-oracle equality test.
+
+The CI smoke configuration used 3 jobs × 3 machines, 12 training instances per epoch, 5 PPO epochs, 6 held-out test instances and exact CP-SAT evaluation on the first 4 test instances. The best validation greedy makespan was `31.438`.
+
+Held-out smoke benchmark:
+
+```text
+method            mean makespan
+PPO greedy            30.667
+SPT                   34.000
+MWKR                  26.500
+Earliest-start        24.500
+```
+
+CP-SAT proved all 4 exact-evaluation instances optimal. Exact-gap results on those 4 instances were:
+
+```text
+method            mean makespan    mean exact gap    feasible rate
+PPO greedy            31.250          37.315%            1.000
+SPT                   32.250          45.149%            1.000
+MWKR                  23.500           4.250%            1.000
+Earliest-start        23.000           2.440%            1.000
+Random                32.250          43.161%            1.000
+```
+
+The short CI-trained PPO policy therefore beat SPT but did **not** beat MWKR or Earliest-start. This is reported as a mechanics/integration validation, not as an RL superiority result. The important CI result is that the complete chain executed successfully:
+
+```text
+Gymnasium JSSP environment
+→ masked Transformer PPO training
+→ feasibility-audited schedules
+→ CP-SAT optimal solutions
+→ exact optimality-gap reporting
+```
+
 ## Schedule feasibility audit
 
 Every completed schedule can be checked for:
